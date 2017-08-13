@@ -9,7 +9,7 @@
 # If you are a sysadmin at a business or some person at a business; you need to 
 # contact me for an inexpensive license.  localbeautytampabay@gmail.com
 
-
+#test Change
 $ReadPaths = $true
 
 function readPaths {
