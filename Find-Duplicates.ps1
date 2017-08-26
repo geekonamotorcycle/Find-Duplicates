@@ -1,83 +1,112 @@
-# Copyright Joshua Porrata 2017
-# License: Not free for Business
-#
-# If you are a individual at home using this for personal things, thats fine, 
-# modify it and do what you want, but dont resell it. You should however include 
-# this link for donations https://www.paypal.me/lbtpa and the copyright should be 
-# displayed when the script is run to remind you that im in poverty and need money.
-#
-# If you are a sysadmin at a business or some person at a business; you need to 
-# contact me for an inexpensive license.  localbeautytampabay@gmail.com
+class HashHolder {
+    [string]$FilePath
+    [string]$FilePath2
+    [string]$FileHash
+    [string]$FileHash2
+    [int]$Size
+    [int]$Size2
+    [datetime]$LastModified
+    [datetime]$LastModified2
+}
+function Get-HashObject {
+    param(
+        [AllowEmptyString()]    
+        [String]$SourcePath
+    )
 
-#test Change
-$ReadPaths = $true
-
-function readPaths {
-    if ($ReadPaths -eq $true) {	
-        $inputcount = 1
-        while (-not ($testReadPath -and $testReadDestPath)) {
-            #enter source path
-            $sourcePath = Read-Host "`nEnter the Source Path[attempt #$inputcount] " 
-            $testReadPath = Test-Path $sourcepath 
-            #varies output based on whether the path exists or not
-            if ($testReadPath) {
-                Write-Host "You entered: $sourcepath  `nDoes the path exist? $testReadPath" -ForegroundColor Green
-            }
-            else {
-                Write-Host "You entered: $sourcepath  `nDoes the path exist? $testReadPath"	-ForegroundColor Red
-            }
-            #Enter Destination Path
-            $destPath = Read-Host "`nEnter the Destination Path[attempt #$inputcount] " 
-            $testReadDestPath = Test-Path $destPath
-            if ($testReadDestPath) {	
-                Write-Host "You entered: $destPath  `nDoes the path exist? $testReadDestPath" -ForegroundColor Green
-            }
-            else {
-                Write-Host "You entered: $destPath  `nDoes the path exist? $testReadDestPath" -ForegroundColor Red
-            }
-            Write-Host "`nThe script will pause for 2 seconds now.`nif you are caught in a loop, take this opportunity to `nsend a break command`n" -ForegroundColor Yellow
-            Start-Sleep -Seconds 2
-            $inputcount++
-        }
-        if ($sourcePath -ne $null) {
-            $directoryInfo = Get-ChildItem -Path $sourcePath -Recurse -file
-            $fileCount = $directoryInfo.Count
-            Write-Host "I found $fileCount files." -ForegroundColor Green
-            If ($directoryInfo -eq $null) {
-                Write-Host "`nThe source directory you entered was `n" -ForegroundColor Red
-                Write-Host "$sourcePath `n" -ForegroundColor Red
-                Write-Host "The Source Directory is empty. `nI will break the script; check the directory and ensure there are files for me to sort." -ForegroundColor Red
-                Break
-            }
-        }    
+    $startTime = [datetime]::Now
+    $liveObject = @()
+    $infoObject = Get-ChildItem -File -Path "C:\users\joshp\downloads\" -Recurse
+    #$ObjectCount = $infoObject.count
+    #$i = 1
+    foreach ($file in $infoObject) {
+        $loopHash = Get-FileHash -Path $file.FullName -Algorithm SHA1
+        $loopHash = $loopHash.Hash
+        #$properties = @{FilePath = $file.FullName.ToString(); FileHash = $loopHash; Size = $file.Length; LastModified = $file.LastWriteTime}
+        $loopObject = New-Object HashHolder -Property @{FilePath = $file.FullName.ToString(); FileHash = $loopHash; Size = $file.Length; LastModified = $file.LastWriteTime} #$properties 
+        $liveObject += $loopObject
+        #Write-Progress -Activity "Generating File Hashes" -Status "Generating" -PercentComplete ($i / $ObjectCount * 100) -CurrentOperation "$i / $objectCount $loopHash $file"
+        #$i++
     }
-    return $sourcePath
-    return $destPath
-    return $directoryInfo
-}   
-Function copyright {
-    Write-Host "`n***********************************************" -BackgroundColor Black -ForegroundColor DarkGreen
-    Write-Host "***Copyright 2017, Joshua Porrata**************" -BackgroundColor Black -ForegroundColor DarkGreen
-    Write-Host "***This program is not free for business use***" -BackgroundColor Black -ForegroundColor DarkGreen
-    Write-Host "***Contact me at localbeautytampabay@gmail.com*" -BackgroundColor Black -ForegroundColor DarkGreen
-    Write-Host "***for a cheap business license****************" -BackgroundColor Black -ForegroundColor DarkGreen
-    Write-Host "***Donations are wholeheartedly accepted ******" -BackgroundColor Black -ForegroundColor Red
-    Write-Host "***accepted @ www.paypal.me/lbtpa**************" -BackgroundColor Black -ForegroundColor Red
-    Write-Host "***********************************************`n" -BackgroundColor Black -ForegroundColor DarkGreen
+    $endtime = [datetime]::Now
+    $runtime = ($startTime - $endtime)
+    Write-Host $runtime
+    $liveObject | ConvertTo-Csv -NoTypeInformation > File_Hash_results.csv    
 }
-function GreenText ([string]$textOut) {
-    Write-Host "$textOut" -ForegroundColor Green
+function Remove-ZeroLength {
+    param(
+        [int]$LengthFilter = 1,
+        $ArrayIn
+    )
+    class HashHolder {
+        [string]$FilePath
+        [string]$FilePath2
+        [string]$FileHash
+        [string]$FileHash2
+        [int]$Size
+        [int]$Size2
+        [datetime]$LastModified
+        [datetime]$LastModified2
+    }
+    $zLengthArray = @()
+    $pLengthArray = @()
+    $ArrayIn = Import-Csv -Path .\File_Hash_results.csv
+    if ($ArrayIn -ne $null) {
+        Write-Host "Found Input Object, Scanning for Zero File Size"
+        foreach ($line in $ArrayIn) {
+            if ($line.size -le $LengthFilter) {
+                $properties = @{Filepath = $line.FilePath; FileHash = $line.FileHash; Size = $line.size}
+                $zLength = New-Object -TypeName HashHolder -Property $properties
+                $zLengthArray += $zLength
+            }
+            else {
+                $properties = @{FilePath = $line.FilePath; FileHash = $line.FileHash; Size = $line.size; LastModified = $line.LastModified}
+                $pLength = New-Object -TypeName HashHolder -Property $properties
+                $pLengthArray += $pLength
+            }
+        }
+        $pLengthArray | Export-Csv -Encoding UTF8 -NoTypeInformation -Path pFile_Hash_results.csv
+        $zLengthArray | Export-Csv -Encoding UTF8 -NoTypeInformation -Path Zero_Length_Results.csv
+    }
 }
+Function Find-HashMatch {
+    $startTime = [datetime]::Now
+    $liveObject = @()
+    if (Test-Path .\pFile_Hash_results.csv) {
+        Write-Host "You are in the right place..."
+        $object1 = Import-Csv -Path .\pFile_Hash_results.csv | Sort-Object -Descending
+        $object2 = $object1
+        #$objectCount = $object1.count
+        #$i = 1
+        $MatchCount = 0
+        foreach ($Hashline in $object2) {
+            foreach ($line1 in $object1) {
+                $test = $line1.FileHash.equals($Hashline.FileHash)
+                if ($test) {
+                    #Write-Host "Match Found!" $line1.FullName
+                    $MatchCount++
+                    if ($MatchCount -gt 2) {
+                        $properties = @{FilePath = $HashLine.FilePath; FileHash = $HashLine.FileHash; Size = $Hashline.size; LastModified = $Hashline.LastModified}
+                        $properties += @{FilePath2 = $line1.FilePath; FileHash2 = $line1.FileHash; Size2 = $line1.size; LastModified2 = $line1.LastModified}
+                        $foundMatches = New-Object HashHolder -Property $properties
+                        $liveObject += $foundMatches
+                    }
+                    #Write-Progress -Activity "Iterating" -Status "Work Work Work, all day long" -PercentComplete ($i / $objectCount * 100) -CurrentOperation "$i / $objectCount"
+                    #$i++
+                }
+            }$MatchCount = 0
+        }
 
-Clear-Host
-copyright
-GreenText("This application requires two inputs, a source path and a destination path")
-GreenText("The application will recurse through the source path gathering file paths and names.")
-GreenText("It will then calculate hashes for each file and compare those hashes to each other")
-GreenText("If duplicates are found they will be MOVED to a directory by date with unique names")
-GreenText("You may then Delete whichever file you dont want and run my movepics script to get ")
-GreenText("them organized.")
-GreenText("`nI know this script is useful to you,so go ahead and make a donation!`n")
-#GreenText("")
- 
-readPaths
+        $liveObject | Out-GridView -Title "Matches"
+        $liveObject | ConvertTo-Csv -NoTypeInformation > Hash_Match_list.csv
+    }
+    else {
+        Get-HashObject
+    }
+    $endtime = [datetime]::Now
+    $runtime = ($startTime - $endtime)
+    Write-Host $runtime
+}
+#Get-HashObject 
+Remove-ZeroLength
+Find-HashMatch
